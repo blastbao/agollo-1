@@ -318,7 +318,7 @@ func (a *agollo) Options() Options {
 	return a.opts
 }
 
-// 启动goroutine去轮训apollo通知接口
+// 启动后台 goroutine 定时 longPoll 获取最新配置，更新本地缓存，并执行文件备份操作。
 func (a *agollo) Start() <-chan *LongPollerError {
 
 	a.runOnce.Do(func() {
@@ -327,7 +327,8 @@ func (a *agollo) Start() <-chan *LongPollerError {
 
 			// 这里使用 timer + reset 而非 ticker 的原因是，确保两次调用 a.longPoll() 的间隔恒定。
 			// 如果使用 ticker 的话，可能一次 a.longPoll() 调用刚刚返回，就要立刻开始下一次的 a.longPoll() 调用。
-			timer := time.NewTimer(a.opts.LongPollerInterval)
+
+			timer := time.NewTimer(a.opts.LongPollerInterval) // 默认间隔 1 s
 			defer timer.Stop()
 
 			// 如果 a.shouldStop() 返回 true，则退出 for 循环
@@ -376,6 +377,7 @@ func (a *agollo) shouldStop() bool {
 	}
 }
 
+// 返回全局监听管道
 func (a *agollo) Watch() <-chan *ApolloResponse {
 	if a.watchCh == nil {
 		a.watchCh = make(chan *ApolloResponse)
@@ -615,9 +617,10 @@ func (a *agollo) longPoll() {
 			// 是否发送变更事件
 			isSendChange := a.isSendChange(notification.NamespaceName)
 
+
 			// 更新 namespace 本地信息：
 			// 	1. 保存 <namespace, notificationID> 到 notificationMap 中
-			// 	2. 请求 config server 服务获取 namespace 的最新配置并保存到 cache 中
+			// 	2. 请求 config server 服务获取 namespace 的最新配置并保存到 cache 中  ==========> 这里会调用不带缓存的配置获取接口 ！
 			// 	3. 备份整个 cache 中的配置到文件中
 			newValue, err := a.reloadNamespace(notification.NamespaceName, notification.NotificationID)
 
