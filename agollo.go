@@ -59,6 +59,8 @@ type agollo struct {
 	initialized     sync.Map // key: namespace value: bool
 
 	watchCh             chan *ApolloResponse // watch all namespace
+
+
 	watchNamespaceChMap sync.Map             // key: namespace value: chan *ApolloResponse
 
 	errorsCh chan *LongPollerError
@@ -122,6 +124,8 @@ func New(configServerURL, appID string, opts ...Option) (Agollo, error) {
 	return a.preload()
 }
 
+
+// 对于需要预加载的 namespace ，逐个调用 a.initNamespace(namespace) 进行初始化(加载)。
 func (a *agollo) preload() (Agollo, error) {
 
 
@@ -139,29 +143,30 @@ func (a *agollo) preload() (Agollo, error) {
 }
 
 
-
+// 初始化
 func (a *agollo) initNamespace(namespace string) error {
 
 	// LoadOrStore() 参数是一对 <key, value>，如果该 key 存在且没有被标记删除则返回原先的 value（不更新）和 true；不存在则 store ，返回该 value 和 false。
-	//
+
 	// So:
 	//  如果 namespace 存在，返回 found 为 true
 	//  如果 namespace 不存在，就设置其值为 true 并返回 found 为 false
 	_, found := a.initialized.LoadOrStore(namespace, true)
 
+
+	// 如果 namespace 不存在，就加载它，否则直接返回，避免重复加载
 	if !found {
-		// 如果 namespace 不存在，就加载它
-		_, err := a.reloadNamespace(namespace, defaultNotificationID)
+		_, err := a.reloadNamespace(namespace, defaultNotificationID) // 进行加载
 		return err
 	}
 
 	return nil
 }
 
-
-// 保存 <namespace, notificationID> 到 notificationMap 中
-// 请求 config server 服务获取 namespace 的最新配置并保存到 cache 中
-// 备份整个 cache 中的配置到文件中
+//加载:
+// 	保存 <namespace, notificationID> 到 notificationMap 中
+// 	请求 config server 服务获取 namespace 的最新配置并保存到 cache 中
+// 	备份整个 cache 中的配置到文件中
 func (a *agollo) reloadNamespace(namespace string, notificationID int) (conf Configurations, err error) {
 
 	// 保存 <namespace, notificationID> 到 notificationMap 中
@@ -234,7 +239,6 @@ func (a *agollo) reloadNamespace(namespace string, notificationID int) (conf Con
 	a.cache.Store(namespace, config.Configurations)     // 覆盖旧缓存
 	a.releaseKeyMap.Store(namespace, config.ReleaseKey) // 存储最新的 release_key
 
-
 	// 因为 a.cache 发生变化，备份整个配置
 	if err = a.backup(); err != nil {
 		return
@@ -243,8 +247,18 @@ func (a *agollo) reloadNamespace(namespace string, notificationID int) (conf Con
 	return
 }
 
+
+
+
+
+
+// 查询 key 的 value
 func (a *agollo) Get(key string, opts ...GetOption) string {
 
+	// 初始化 Get 查询参数，主要是设 缺省值 和 namespace。
+	//
+	// 值得注意的是，如果 opts 指定 namespace ，下面的 append 操作会将 opts 放到设置 default namespace 的操作
+	// 后面，因此会覆盖掉 default namespace ，如果没有通过 opts 指定，则会自动去 default 中查询。
 
 	getOpts := newGetOptions(
 		append(
@@ -256,26 +270,39 @@ func (a *agollo) Get(key string, opts ...GetOption) string {
 	)
 
 
-
+	// 1. 通过 GetNameSpace(namespace) 获取 namespace 的配置 config
+	// 2. 从 config 中查询目标 key
 	val, found := a.GetNameSpace(getOpts.Namespace)[key]
+
+
+	// 若 config 中不存在目标 key 则返回默认值
 	if !found {
 		return getOpts.DefaultValue
 	}
 
-
+	// 若存在，就把对应的 val 转换成字符串并返回
 	v, _ := ToStringE(val)
-
 
 	return v
 }
 
 func (a *agollo) GetNameSpace(namespace string) Configurations {
+
+
+	// 如果 namespace 存在，返回当前的 config，且 found 为 true
+	// 如果 namespace 不存在，就设置其值为 Configurations{} 并返回它，且 found 为 false
 	config, found := a.cache.LoadOrStore(namespace, Configurations{})
+
+	// 如果 found 为 false 则意味着本地缓存中不存在 namespace 的配置信息，
+	// 若此时配置了 `当配置不存在时需要回源获取` 的标识，则调用 a.initNamespace(namespace) 对 namespace 进行加载，
+	// 加载完成后，再次查询 cache 获取并返回。
 	if !found && a.opts.AutoFetchOnCacheMiss {
 		_ = a.initNamespace(namespace)
 		return a.getNameSpace(namespace)
 	}
 
+	// 如果 found 为 true，就直接返回缓存的 config
+	// 如果 found 为 false 且并没有配置自动回源策略，就直接返回空的 Configurations{}
 	return config.(Configurations)
 }
 
@@ -358,29 +385,45 @@ func (a *agollo) Watch() <-chan *ApolloResponse {
 }
 
 func fixWatchNamespace(namespace string) string {
-	// fix: 传给apollo类似test.properties这种namespace
-	// 通知回来的NamespaceName却没有.properties后缀，追加.properties后缀来修正此问题
+	// fix: 传给 apollo 类似 test.properties 这种 namespace
+	// 通知回来的 NamespaceName 却没有 .properties 后缀，追加 .properties 后缀来修正此问题
+
+	// 获取 namespace 扩展名
 	ext := path.Ext(namespace)
+	// 如果扩展名为空，则追加 ".properties"
 	if ext == "" {
 		namespace = namespace + "." + defaultConfigType
 	}
+	// 返回
 	return namespace
 }
 
+
+
 func (a *agollo) WatchNamespace(namespace string, stop chan bool) <-chan *ApolloResponse {
+
+	// 修正 namespace 的扩展名
 	watchNamespace := fixWatchNamespace(namespace)
+
+	// 获取 namespace 的变更事件监听管道，如果不存在就创建这个管道并注册到 watchNamespaceChMap 中 ，并返回 exists 为 false
 	watchCh, exists := a.watchNamespaceChMap.LoadOrStore(watchNamespace, make(chan *ApolloResponse))
+
+
+	// 如果 namespace 此前未被监听，这里启动一个协程确保这个 namespace 被初始化
 	if !exists {
+
 		go func() {
-			// 非预加载以外的namespace,初始化基础meta信息,否则没有longpoll
+			// 非预加载以外的 namespace ,初始化基础meta信息,否则没有longpoll
+
+
+			// 调用 a.initNamespace(namespace) 确保 namespace 已经被初始化
 			err := a.initNamespace(namespace)
 			if err != nil {
-				watchCh.(chan *ApolloResponse) <- &ApolloResponse{
-					Namespace: namespace,
-					Error:     err,
-				}
+				watchCh.(chan *ApolloResponse) <- &ApolloResponse{Namespace: namespace, Error: err}
 			}
 
+			// 如果 stop 管道为空，这里就直接返回了，这个 namespace 上的变更就会一直被监听
+			// 如果 stop 管道不为空，需要阻塞等待它的信号，如果收到关闭信号，就取消这个 namespace 的监听。
 			if stop != nil {
 				<-stop
 				a.watchNamespaceChMap.Delete(watchNamespace)
@@ -388,17 +431,22 @@ func (a *agollo) WatchNamespace(namespace string, stop chan bool) <-chan *Apollo
 		}()
 	}
 
+	// 返回这个管道
 	return watchCh.(chan *ApolloResponse)
 }
 
+
+// 将变更事件发送到 namespace 的监听管道和全局监听管道
 func (a *agollo) sendWatchCh(namespace string, oldVal, newVal Configurations) {
 
 
+	// 求 old  和 new 的差集，获取变更的内容
 	changes := oldVal.Different(newVal)
 	if len(changes) == 0 {
 		return
 	}
 
+	// 构造变更事件结构体
 	resp := &ApolloResponse{
 		Namespace: namespace,
 		OldValue:  oldVal,
@@ -406,8 +454,13 @@ func (a *agollo) sendWatchCh(namespace string, oldVal, newVal Configurations) {
 		Changes:   changes,
 	}
 
+
 	timer := time.NewTimer(defaultWatchTimeout)
+
+	// 调用 a.getWatchChs(namespace) 获取变更事件 resp 需要发往的管道
 	for _, watchCh := range a.getWatchChs(namespace) {
+
+		// 带超时的管道写操作，如果超时 continue
 		select {
 		case watchCh <- resp:
 
@@ -418,16 +471,24 @@ func (a *agollo) sendWatchCh(namespace string, oldVal, newVal Configurations) {
 }
 
 func (a *agollo) getWatchChs(namespace string) []chan *ApolloResponse {
+
+
 	var chs []chan *ApolloResponse
+
+	// 如果全局监听管道不空，就添加到 chs 中
 	if a.watchCh != nil {
-		chs = append(chs, a.watchCh)
+		chs = append(chs, a.watchCh) // 全局监听管道，所有的事件都要发往这个管道，所以默认添加到 chs 中
 	}
 
+	// 修正 namespace 的扩展名
 	watchNamespace := fixWatchNamespace(namespace)
+
+	// 获取 namespace 的事件监听管道，如果不存在就忽略，若存在就添加到 chs 中
 	if watchNamespaceCh, found := a.watchNamespaceChMap.Load(watchNamespace); found {
 		chs = append(chs, watchNamespaceCh.(chan *ApolloResponse))
 	}
 
+	// 至此，chs 保存了 namespace 的监听管道和全局监听管道，当然也可能二者均空，就返回空数组
 	return chs
 }
 
@@ -452,13 +513,7 @@ func (a *agollo) sendErrorsCh(configServerURL string, notifications []Notificati
 
 func (a *agollo) log(kvs ...interface{}) {
 	a.opts.Logger.Log(
-		append([]interface{}{
-			"[Agollo]", "",
-			"AppID", a.opts.AppID,
-			"Cluster", a.opts.Cluster,
-		},
-			kvs...,
-		)...,
+		append([]interface{}{"[Agollo]", "", "AppID", a.opts.AppID, "Cluster", a.opts.Cluster}, kvs...)...,
 	)
 }
 
@@ -566,13 +621,12 @@ func (a *agollo) longPoll() {
 			// 	3. 备份整个 cache 中的配置到文件中
 			newValue, err := a.reloadNamespace(notification.NamespaceName, notification.NotificationID)
 
-
 			// 更新成功
 			if err == nil {
 
-				// 需要发送变更事件
+				// 如果需要发送变更事件
 				if isSendChange {
-					// 将变更事件发送到 变更监听管道
+					// 将变更事件发送到 namespace 的监听管道和全局监听管道
 					a.sendWatchCh(notification.NamespaceName, oldValue, newValue)
 				}
 

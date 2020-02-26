@@ -202,9 +202,10 @@ func ConfigServerRefreshIntervalInSecond(refreshIntervalInSecond time.Duration) 
 	}
 }
 
+//
 type GetOptions struct {
-	DefaultValue string
-	Namespace    string
+	DefaultValue string		// 默认值
+	Namespace    string		// namespace
 }
 
 func newGetOptions(opts ...GetOption) GetOptions {
@@ -217,12 +218,15 @@ func newGetOptions(opts ...GetOption) GetOptions {
 
 type GetOption func(*GetOptions)
 
+
+// 设置 o.DefaultValue
 func WithDefault(defVal string) GetOption {
 	return func(o *GetOptions) {
 		o.DefaultValue = defVal
 	}
 }
 
+// 设置 o.Namespace
 func WithNamespace(namespace string) GetOption {
 	return func(o *GetOptions) {
 		o.Namespace = namespace
