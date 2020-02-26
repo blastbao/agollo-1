@@ -206,7 +206,7 @@ func (a *agollo) reloadNamespace(namespace string, notificationID int) (conf Con
 
 		conf = Configurations{}
 
-		// 异常状况下，如果开启容灾，则读取备份
+		// 异常状况下，如果开启容灾，则读取备份文件
 		if a.opts.FailTolerantOnBackupExists {
 
 			// 查找目标 namespace 的本地备份信息
@@ -293,19 +293,31 @@ func (a *agollo) Options() Options {
 
 // 启动goroutine去轮训apollo通知接口
 func (a *agollo) Start() <-chan *LongPollerError {
+
 	a.runOnce.Do(func() {
+
 		go func() {
+
+			// 这里使用 timer + reset 而非 ticker 的原因是，确保两次调用 a.longPoll() 的间隔恒定。
+			// 如果使用 ticker 的话，可能一次 a.longPoll() 调用刚刚返回，就要立刻开始下一次的 a.longPoll() 调用。
 			timer := time.NewTimer(a.opts.LongPollerInterval)
 			defer timer.Stop()
 
+			// 如果 a.shouldStop() 返回 true，则退出 for 循环
 			for !a.shouldStop() {
+
 				select {
 				case <-timer.C:
+
+					// 调用 longPoll 更新本地配置
 					a.longPoll()
+					// 重置定时器
 					timer.Reset(a.opts.LongPollerInterval)
+
 				case <-a.stopCh:
 					return
 				}
+
 			}
 		}()
 	})
@@ -330,7 +342,7 @@ func (a *agollo) Stop() {
 
 func (a *agollo) shouldStop() bool {
 	select {
-	case <-a.stopCh:
+	case <-a.stopCh: // 如果调用过 close(a.stopCh) 那么会一直返回 true
 		return true
 	default:
 		return false
@@ -572,6 +584,8 @@ func (a *agollo) longPoll() {
 	}
 }
 
+// 如果 namespace 不存在于 notificationMap 中，则不需要发送变更事件。
+// 如果存在，但是 notificationID == defaultNotificationID，则属于首次添加，不需要发送变更事件。
 func (a *agollo) isSendChange(namespace string) bool {
 	v, ok := a.notificationMap.Load(namespace)
 	return ok && v.(int) > defaultNotificationID

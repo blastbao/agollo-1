@@ -3,10 +3,6 @@
   <component name="ChangeListManager">
     <list default="true" id="2520d0d1-9d0a-407b-af44-34d665a86f16" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/agollo.go" beforeDir="false" afterPath="$PROJECT_DIR$/agollo.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/apollo_client.go" beforeDir="false" afterPath="$PROJECT_DIR$/apollo_client.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/balancer.go" beforeDir="false" afterPath="$PROJECT_DIR$/balancer.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/options.go" beforeDir="false" afterPath="$PROJECT_DIR$/options.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/util.go" beforeDir="false" afterPath="$PROJECT_DIR$/util.go" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -19,8 +15,8 @@
       <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/agollo.go">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="592">
-              <caret line="567" column="58" selection-start-line="567" selection-start-column="58" selection-end-line="567" selection-end-column="58" />
+            <state relative-caret-position="332">
+              <caret line="208" column="31" selection-start-line="208" selection-start-column="31" selection-end-line="208" selection-end-column="31" />
             </state>
           </provider>
         </entry>
@@ -78,8 +74,8 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/apollo_client.go">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="154">
-              <caret line="215" column="29" lean-forward="true" selection-start-line="215" selection-start-column="29" selection-end-line="215" selection-end-column="29" />
+            <state relative-caret-position="593">
+              <caret line="227" lean-forward="true" selection-start-line="227" selection-end-line="227" />
             </state>
           </provider>
         </entry>
@@ -261,13 +257,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/apollo_client.go">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="154">
-          <caret line="215" column="29" lean-forward="true" selection-start-line="215" selection-start-column="29" selection-end-line="215" selection-end-column="29" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/balancer.go">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="-2033">
@@ -275,10 +264,17 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/apollo_client.go">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="593">
+          <caret line="227" lean-forward="true" selection-start-line="227" selection-end-line="227" />
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/agollo.go">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="592">
-          <caret line="567" column="58" selection-start-line="567" selection-start-column="58" selection-end-line="567" selection-end-column="58" />
+        <state relative-caret-position="332">
+          <caret line="208" column="31" selection-start-line="208" selection-start-column="31" selection-end-line="208" selection-end-column="31" />
         </state>
       </provider>
     </entry>
