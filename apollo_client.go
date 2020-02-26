@@ -16,6 +16,7 @@ var (
 
 // https://github.com/ctripcorp/apollo/wiki/%E5%85%B6%E5%AE%83%E8%AF%AD%E8%A8%80%E5%AE%A2%E6%88%B7%E7%AB%AF%E6%8E%A5%E5%85%A5%E6%8C%87%E5%8D%97
 type ApolloClient interface {
+
 	Notifications(configServerURL, appID, clusterName string, notifications []Notification) (int, []Notification, error)
 
 	// 该接口会直接从数据库中获取配置，可以配合配置推送通知实现实时更新配置。
@@ -27,6 +28,8 @@ type ApolloClient interface {
 	// 该接口从MetaServer获取ConfigServer列表
 	GetConfigServers(metaServerURL, appID string) (int, []ConfigServer, error)
 }
+
+
 
 type Notifications []Notification
 
@@ -40,6 +43,7 @@ type Notification struct {
 	NotificationID int    `json:"notificationId"` // notificationId: 107
 }
 
+
 type NotificationsOptions struct {
 	ReleaseKey string
 }
@@ -52,6 +56,9 @@ func ReleaseKey(releaseKey string) NotificationsOption {
 	}
 }
 
+
+
+// 某个 namespace 的完整信息
 type Config struct {
 	AppID          string         `json:"appId"`          // appId: "AppTest",
 	Cluster        string         `json:"cluster"`        // cluster: "default",
@@ -60,20 +67,28 @@ type Config struct {
 	ReleaseKey     string         `json:"releaseKey"`     // releaseKey: "20181017110222-5ce3b2da895720e8"
 }
 
+//
 type ConfigServer struct {
-	AppName     string `json:"appName"`
-	InstanceID  string `json:"instanceId"`
-	HomePageURL string `json:"homepageUrl"`
+	AppName     string `json:"appName"`		// 业务名
+	InstanceID  string `json:"instanceId"`	// 实例名
+	HomePageURL string `json:"homepageUrl"`	// 地址
 }
+
+
+
+
+
 
 type Doer interface {
 	Do(*http.Request) (*http.Response, error)
 }
 
+
+
 type apolloClient struct {
 	Doer       Doer
-	IP         string
-	ConfigType string // 默认properties不需要在namespace后加后缀名，其他情况例如application.json {xml,yml,yaml,json,...}
+	IP         string	// 本机 IP
+	ConfigType string 	// 默认 properties 不需要在 namespace 后加后缀名，其他情况例如 application.json {xml,yml,yaml,json,...}
 }
 
 type ApolloClientOption func(*apolloClient)

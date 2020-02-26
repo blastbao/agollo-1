@@ -5,6 +5,10 @@ import (
 	"time"
 )
 
+
+
+
+
 var (
 	defaultCluster                    = "default"
 	defaultNamespace                  = "application"
@@ -15,12 +19,16 @@ var (
 	defaultLongPollInterval           = 1 * time.Second
 )
 
+
 type Options struct {
+
 	AppID                      string        // appid
 	Cluster                    string        // 默认的集群名称，默认：default
 	DefaultNamespace           string        // 默认的命名空间，默认：application
 	PreloadNamespaces          []string      // 预加载命名空间，默认：application
+
 	ApolloClient               ApolloClient  // apollo HTTP api实现
+
 	Logger                     Logger        // 需要日志需要设置实现，或者注入有效的io.Writer，默认: ioutil.Discard
 	AutoFetchOnCacheMiss       bool          // 自动获取非预设以外的namespace的配置，默认：false
 	LongPollerInterval         time.Duration // 轮训间隔时间，默认：1s
@@ -31,7 +39,16 @@ type Options struct {
 	RefreshIntervalInSecond    time.Duration // ConfigServer刷新间隔
 }
 
+
+
+// 初始化默认配置
+// 初始化特性配置
+// 初始化负载均衡器
+// 设置预加载 namespace
+
 func newOptions(configServerURL, appID string, opts ...Option) (Options, error) {
+
+	// 默认配置
 	var options = Options{
 		AppID:                      appID,
 		Cluster:                    defaultCluster,
@@ -44,27 +61,35 @@ func newOptions(configServerURL, appID string, opts ...Option) (Options, error) 
 		FailTolerantOnBackupExists: defaultFailTolerantOnBackupExists,
 		EnableSLB:                  defaultEnableSLB,
 	}
+
+	// 设置
 	for _, opt := range opts {
 		opt(&options)
 	}
 
+	// 负载均衡器
 	if options.Balancer == nil {
 		var b Balancer
+		// 从配置或者环境变量中获取 ConfigServerAddrs
 		configServerURLs := getConfigServers(configServerURL)
+		// 如果客户端开启了 EnableSLB 或者没有指定 ConfigServerAddrs 地址，就需要定时、自动的通过 MetaServer 获取
+		// 最新的 ConfigServerAddrs 来更新本地负载均衡器。
 		if options.EnableSLB || len(configServerURLs) == 0 {
 			var err error
-			b, err = NewAutoFetchBalancer(configServerURL, appID,
-				options.ApolloClient.GetConfigServers,
-				options.RefreshIntervalInSecond, options.Logger)
+			// 创建能够定时更新 ConfigServerAddrs 的负载均衡器，赋值给 b
+			b, err = NewAutoFetchBalancer(configServerURL, appID, options.ApolloClient.GetConfigServers, options.RefreshIntervalInSecond, options.Logger)
 			if err != nil {
 				return options, err
 			}
 		} else {
+			// 如果明确指定了 ConfigServerAddrs 且没有开启 EnableSLB 则使用 configServerURLs 初始本地负载均衡器
 			b = NewRoundRobin(configServerURLs)
 		}
+		// 设置负载均衡器
 		options.Balancer = b
 	}
 
+	// 预加载的 namespaces
 	if len(options.PreloadNamespaces) == 0 {
 		options.PreloadNamespaces = []string{defaultNamespace}
 	} else {
@@ -87,6 +112,7 @@ func newOptions(configServerURL, appID string, opts ...Option) (Options, error) 
  3. Get from server.properties
 https://github.com/ctripcorp/apollo/blob/master/apollo-client/src/main/java/com/ctrip/framework/apollo/internals/ConfigServiceLocator.java#L74
 */
+// 本函数目的是从配置或者环境变量中获取 ConfigServerAddrs 。
 func getConfigServers(configServerURL string) []string {
 	var urls []string
 	for _, url := range []string{

@@ -11,6 +11,8 @@ func stringInSlice(a string, list []string) bool {
 	return false
 }
 
+
+// URL 标准化： （1）添加 http/https 前缀； (2) 删除 "/" 后缀。
 func normalizeURL(url string) string {
 	if !strings.HasPrefix(url, "http://") && !strings.HasPrefix(url, "https://") {
 		url = "http://" + url
