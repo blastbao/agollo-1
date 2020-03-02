@@ -247,11 +247,6 @@ func (a *agollo) reloadNamespace(namespace string, notificationID int) (conf Con
 	return
 }
 
-
-
-
-
-
 // 查询 key 的 value
 func (a *agollo) Get(key string, opts ...GetOption) string {
 
